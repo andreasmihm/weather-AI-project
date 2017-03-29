@@ -1,57 +1,52 @@
 'use strict'
 
-const getCurrentWeather = require('./lib/getCurrentWeather')
+const getCompanyInfo = require('./lib/getCompanyInfo')
 
 exports.handle = function handle(client) {
-  const collectCity = client.createStep({
+  const collectCompany = client.createStep({
     satisfied() {
-      return Boolean(client.getConversationState().weatherCity)
+      return Boolean(client.getConversationState().divaeCompany)
     },
 
     extractInfo() {
-     const city = client.getFirstEntityWithRole(client.getMessagePart(), 'city')
-      if (city) {
+     const company = client.getFirstEntityWithRole(client.getMessagePart(), 'company')
+      if (company) {
         client.updateConversationState({
-          weatherCity: city,
+          divaeCompany: company,
         })
-        console.log('User wants the weather in:', city.value)
+        console.log('User wants the info about:', company.value)
       }
     },
 
     prompt() {
-      client.addResponse('prompt/weather_city')
+      client.addResponse('prompt/divae_company')
       client.done()
     },
   })
 
-  const provideWeather = client.createStep({
+  const provideInformation = client.createStep({
     satisfied() {
       return false
     },
 
     prompt(callback) {
       const environment = client.getCurrentApplicationEnvironment()
-      getCurrentWeather(environment.weatherAPIKey, client.getConversationState().weatherCity.value, resultBody => {
-        if (!resultBody || resultBody.cod !== 200) {
-          console.log('Error getting weather.')
+      getCompanyInfo(client.getConversationState().divaeCompany.value, resultBody => {
+        if (!resultBody) {
+          console.log('Error getting info.')
           callback()
           return
         }
 
-        const weatherDescription = (
-          resultBody.weather.length > 0 ?
-          resultBody.weather[0].description :
-          null
-        )
-
-        const weatherData = {
-          temperature: Math.round(resultBody.main.temp),
-          condition: weatherDescription,
-          city: resultBody.name,
+        const companyData = {
+          headCount: resultBody.headCount,
+          interns: resultBody.interns,
+		  revenue: resultBody.revenue,
+          company: resultBody.companyName,
         }
 
-        console.log('sending real weather:', weatherData)
-        client.addResponse('provide_weather/current', weatherData)
+        console.log('sending company data:', companyData)
+        client.addResponse('provide_company_information/current', companyData)
         client.done()
 
         callback()
@@ -62,8 +57,8 @@ exports.handle = function handle(client) {
   client.runFlow({
     classifications: {},
     streams: {
-      main: 'getWeather',
-      getWeather: [collectCity, provideWeather],
+      main: 'getCompanyInformation',
+      getWeather: [collectCompany, provideInformation],
     }
   })
 }
